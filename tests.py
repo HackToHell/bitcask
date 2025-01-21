@@ -163,6 +163,72 @@ class TestFSFile(unittest.TestCase):
         self.assertTrue(self.fs_file.get_file_name().endswith('.chunk'))
         self.assertTrue(os.path.isdir(os.path.dirname(self.fs_file.get_file_name())))
 
+import unittest
+import time
+import math
+from tokenbucketfilter import TokenBucketFilter  # Assuming your code is in token_bucket_filter.py
+
+class TestTokenBucketFilter(unittest.TestCase):
+
+    def test_initial_state(self):
+        bucket = TokenBucketFilter(max_size=10)
+        self.assertEqual(bucket.curr_tokens, 10)
+
+    def test_consume_successful(self):
+        bucket = TokenBucketFilter(max_size=10)
+        self.assertTrue(bucket.consume())
+        self.assertEqual(bucket.curr_tokens, 9)
+
+    def test_consume_unsuccessful_when_empty(self):
+        bucket = TokenBucketFilter(max_size=1)
+        bucket.consume() # Use up the only token
+        self.assertFalse(bucket.consume())
+        self.assertEqual(bucket.curr_tokens, 0)
+
+    def test_refill_within_fill_time_does_not_refill(self):
+        bucket = TokenBucketFilter(max_size=10, fill_tokens=2, fill_time_secs=1)
+        bucket.consume()
+        time.sleep(0.5)
+        bucket._refill()
+        self.assertEqual(bucket.curr_tokens, 9)
+
+    def test_refill_when_time_elapsed_refills(self):
+        bucket = TokenBucketFilter(max_size=10, fill_tokens=2, fill_time_secs=1)
+        bucket.consume()
+        time.sleep(1.1) # wait longer then refill time
+        bucket._refill()
+        self.assertEqual(bucket.curr_tokens, 10)
+
+    def test_refill_with_multiple_refills_due_to_time(self):
+        bucket = TokenBucketFilter(max_size=10, fill_tokens=2, fill_time_secs=1)
+        bucket.consume()
+        time.sleep(3.1)
+        bucket._refill()
+        self.assertEqual(bucket.curr_tokens, 10)
+
+    def test_refill_does_not_exceed_max_size(self):
+        bucket = TokenBucketFilter(max_size=5, fill_tokens=3, fill_time_secs=1)
+        bucket.consume() # 4 left
+        time.sleep(2.1)  # Wait long enough for 2 refills (6 tokens) but should not exceed max size
+        bucket._refill()
+        self.assertEqual(bucket.curr_tokens, 5)
+
+    def test_refill_is_only_called_when_time_elapsed(self):
+        bucket = TokenBucketFilter(max_size=5, fill_tokens=3, fill_time_secs=2)
+        bucket.consume() #4 left
+        time.sleep(1.9)
+        bucket._refill() # not time to refill
+        self.assertEqual(bucket.curr_tokens, 4)
+        time.sleep(0.2)
+        bucket._refill() # now time to refill
+        self.assertEqual(bucket.curr_tokens, 5)
+
+    def test_consume_after_refill(self):
+        bucket = TokenBucketFilter(max_size=5, fill_tokens=1, fill_time_secs=1)
+        bucket.consume() # 4 left
+        time.sleep(1.1)
+        self.assertTrue(bucket.consume())
+        self.assertEqual(bucket.curr_tokens, 4)
 
 
 
