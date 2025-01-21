@@ -10,5 +10,5 @@ This is a _fast_ (I mean I wrote this ASAP not fast fast, it's python) implement
 
 
 ## Fun Addons
-- Write rate limiting
+- Write rate limiting - Done
 - Distributed consensus version

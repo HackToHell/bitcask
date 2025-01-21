@@ -29,11 +29,15 @@ class CaskDB(ABC):
     #     pass
 
 class CaskDBImpl(CaskDB):
-    def __init__(self):
+    def __init__(self, ratelimiter=None):
         self.kh = {}
         self.fs_file = None
+        if ratelimiter is not None:
+            self.ratelimiter = ratelimiter
 
     def put(self, key, value):
+        if self.ratelimiter is not None and not self.ratelimiter.consume():
+            return False
         if self.fs_file is None:
             raise Exception("File not yet open")
         if not self.fs_file.can_append():
